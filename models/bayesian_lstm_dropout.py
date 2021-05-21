@@ -18,16 +18,16 @@ class BayesLSTMencoder(nn.Module):
         self.l1 = nn.Linear(encoder.hidden_size+n_features,hidden_dim)
         self.l2 = nn.Linear(hidden_dim,output_dim)
         
-    def forward(self, x_encoder, x_other,dropout=False):
+    def forward(self, x_encoder, x_other,dropout=0.0):
         _,context = self.encoder(x_encoder) 
-        context = F.dropout(context[0], p=0.5, training=dropout)
+        context = F.dropout(context[0], p=dropout, training=True)
         output = torch.cat((context.view(-1,1,self.encoder_dim), x_other), dim=2)
         output = self.l1(F.relu(output))
-        output = F.dropout(output, p=0.5, training=dropout)
+        output = F.dropout(output, p=dropout, training=True)
         output = self.l2(F.relu(output))
         return output
     
-    def train_single_epoch(self, dataloader, optimizer, loss_fn):
+    def train_single_epoch(self, dataloader, optimizer, loss_fn, dropout=0.25):
         """
         train Bayesian LTSM with encoder
 
@@ -45,7 +45,7 @@ class BayesLSTMencoder(nn.Module):
             optimizer.zero_grad()
 
             # predict
-            outputs = self.forward(x_encoder, x_other, True)
+            outputs = self.forward(x_encoder, x_other, dropout)
 
             # compute the loss 
             loss = loss_fn(outputs, target_tensor)
@@ -56,11 +56,27 @@ class BayesLSTMencoder(nn.Module):
             optimizer.step()
 
         # loss for epoch 
-        epoch_loss /= len(dataloader) 
+        epoch_loss /= len(dataloader)*batch_size
 
         return epoch_loss
+    
+    def evaluate(self,dataloader, loss_fn):
+        
+        batch_size = dataloader.batch_size
+        eval_loss = 0.
 
-    def inference(self,x_encoder, x_other,dropout=False):
+        for i, (x_encoder,x_other,target_tensor) in enumerate(dataloader):
+            outputs = self.forward(x_encoder,x_other)
+            # compute the loss 
+            loss = loss_fn(outputs, target_tensor)
+            eval_loss += loss.item()
+
+        # loss for evaluation 
+        eval_loss /= len(dataloader)*batch_size
+                    
+        return eval_loss
+
+    def inference(self,x_encoder, x_other,dropout=0.0):
         """
         Inference on newly observed data
         """

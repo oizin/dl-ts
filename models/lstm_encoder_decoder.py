@@ -123,7 +123,7 @@ class lstm_seq2seq(nn.Module):
             optimizer.step()
 
         # loss for epoch 
-        epoch_loss /= len(dataloader) 
+        epoch_loss /= len(dataloader)*batch_size
                     
         return epoch_loss
     
@@ -143,7 +143,7 @@ class lstm_seq2seq(nn.Module):
             eval_loss += loss.item()
 
         # loss for evaluation 
-        eval_loss /= len(dataloader) 
+        eval_loss /= len(dataloader)*batch_size
                     
         return eval_loss
     
@@ -160,7 +160,7 @@ class lstm_seq2seq(nn.Module):
         encoder_output, encoder_hidden = self.encoder(input_tensor)
 
         # initialize tensor for predictions
-        outputs = torch.zeros(batch_size, target_len, input_tensor.size(2))
+        outputs = torch.zeros(batch_size, target_len, input_tensor.size(2),device=input_tensor.device)
 
         # encoder -> decoder
         decoder_input = input_tensor[:,input_size-1,:]   # shape: (batch_size, input_size)
